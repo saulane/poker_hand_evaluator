@@ -1,17 +1,16 @@
-use std::collections::HashMap;
-use lazy_static::lazy_static;
 use crate::lookup::PRIMES;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 // Assuming STR_RANKS and INT_RANKS are defined earlier in Python
 // let's assume they're arrays/vectors in Rust for this translation
-// let STR_RANKS: Vec<&str> = vec!["a", "b", ...]; 
+// let STR_RANKS: Vec<&str> = vec!["a", "b", ...];
 // let INT_RANKS: Vec<i32> = vec![1, 2, ...];
 pub const STR_RANKS: &str = "23456789TJQKA";
 pub const STR_SUITS: &str = "shdc";
-pub const INT_RANKS: [u8; 13] = [0,1,2,3,4,5,6,7,8,9,10,11,12];
+pub const INT_RANKS: [u8; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 const INT_SUIT_TO_CHAR_SUIT: &str = "xshxdxxxc";
-
 
 lazy_static! {
     static ref CHAR_SUIT_TO_INT_SUIT: HashMap<char, u8> = {
@@ -22,7 +21,6 @@ lazy_static! {
         m.insert('c', 8);
         m
     };
-
     static ref CHAR_RANK_TO_INT_RANK: HashMap<char, u8> = {
         let mut m = HashMap::new();
         m.insert('2', 0);
@@ -42,7 +40,6 @@ lazy_static! {
     };
 }
 
-
 // +--------+--------+--------+--------+
 // |xxxbbbbb|bbbbbbbb|cdhsrrrr|xxpppppp|
 // +--------+--------+--------+--------+
@@ -52,16 +49,18 @@ lazy_static! {
 // cdhs = suit of card (bit turned on based on suit of card)
 // b = bit turned on depending on rank of card
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Card {
-    pub bit_value: u32
+    pub bit_value: u32,
+    pub rank_char: char,
+    pub suit_char: char,
 }
 
-impl Card{
+impl Card {
     pub fn new(value: &str) -> Card {
         let rank_char = value.chars().nth(0).unwrap();
         let suit_char = value.chars().nth(1).unwrap();
-        
+
         let rank_int: u32 = CHAR_RANK_TO_INT_RANK[&rank_char] as u32;
         let suit_int = CHAR_SUIT_TO_INT_SUIT[&suit_char] as u32;
         let rank_prime = PRIMES[rank_int as usize] as u32;
@@ -71,10 +70,32 @@ impl Card{
         let rank = rank_int << 8;
 
         let bit_value: u32 = bitrank as u32 | suit as u32 | rank as u32 | rank_prime as u32;
-        Card { bit_value }
+        Card {
+            bit_value,
+            rank_char,
+            suit_char,
+        }
     }
 
     pub fn from_bit_value(bit_value: u32) -> Card {
-        Card { bit_value }
+        let suit = Card::get_suit_int(bit_value) as usize;
+        let rank = Card::get_rank_int(bit_value) as usize;
+        Card {
+            bit_value,
+            rank_char: STR_RANKS.chars().nth(rank).unwrap(),
+            suit_char: INT_SUIT_TO_CHAR_SUIT.chars().nth(suit).unwrap(),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{}{}", self.rank_char, self.suit_char)
+    }
+
+    fn get_suit_int(value: u32) -> u32 {
+        (value >> 12) & 0xF
+    }
+
+    fn get_rank_int(value: u32) -> u32 {
+        (value >> 8) & 0xF
     }
 }
