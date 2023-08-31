@@ -1,69 +1,60 @@
 mod cards;
 mod deck;
 mod evaluator;
-mod game;
 mod lookup;
 mod range;
 mod tests;
 
 use cards::Card;
 use clap::Parser;
+use csv;
 use deck::Deck;
-use evaluator::eval_7hand;
+use evaluator::eval_hand;
 use range::Range;
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs::File;
+use std::sync::mpsc::{channel, Sender};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[arg(long)]
-    hand: String,
+    hand1: String,
 
-    #[arg(short, long, default_value_t = 10000)]
-    n: u128,
-
-    #[arg(long, default_value_t = 6)]
-    n_players: u128,
-}
-
-fn simulate_hand_vs_range(hand: &Vec<Card>, range: &Range) -> f64 {
-    let n = 100000;
-    let mut wins = 0;
-    for _ in 0..n {
-        let mut deck = Deck::new();
-        deck.remove(hand[0]);
-        deck.remove(hand[1]);
-
-        let hands_opp = range.clone().draw(Some(hand.clone()));
-        deck.remove(hands_opp[0]);
-        deck.remove(hands_opp[1]);
-
-        let board = vec![
-            deck.draw(),
-            deck.draw(),
-            deck.draw(),
-            deck.draw(),
-            deck.draw(),
-        ];
-        if eval_7hand(&board, &hand) < eval_7hand(&board, &hands_opp) {
-            wins += 1;
-        }
-    }
-
-    wins as f64 / n as f64
+    #[arg(long)]
+    hand2: String,
 }
 
 fn main() {
     let args = Cli::parse();
 
-    println!("Your Hand: {}", args.hand);
+    let mut temp_deck = Deck::new();
 
-    let card1 = Card::new(&args.hand[0..2]);
-    let card2 = Card::new(&args.hand[2..]);
-    let hand = vec![card1, card2];
+    let card1 = Card::new(&args.hand1[0..2]);
+    let card2 = Card::new(&args.hand1[2..]);
+    let hand1 = vec![card1, card2];
 
-    let hand_opp_range = Range::utg_range();
+    let card21 = Card::new(&args.hand2[0..2]);
+    let card22 = Card::new(&args.hand2[2..]);
+    let hand2 = vec![card21, card22];
 
-    let winrate = simulate_hand_vs_range(&hand, &hand_opp_range);
+    temp_deck.remove(card1);
+    temp_deck.remove(card2);
+    temp_deck.remove(card22);
+    temp_deck.remove(card21);
 
-    println!("Win rate for {} simulations: {}", args.n, winrate)
+    let board = vec![
+        temp_deck.draw(),
+        temp_deck.draw(),
+        temp_deck.draw(),
+        temp_deck.draw(),
+        temp_deck.draw(),
+    ];
+
+    let res = eval_hand(&board, &hand1);
+    let res2 = eval_hand(&board, &hand2);
+    let win = res < res2;
+    println!("{:?}", win);
 }
